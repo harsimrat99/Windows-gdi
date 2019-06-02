@@ -1,4 +1,4 @@
-//compile using g++ wingdi.cpp -mwindows -lgdiplus -w
+//compile using g++ wingdi.cpp -mwindows -lgdiplus -w -os
 //To make sure the software runs properly please add a bitmap image file name "dd" in the same folder as the binary for this code.
 
 #ifndef UNICODE
@@ -12,14 +12,25 @@
 #include <gdiplus.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <iostream>
 
 HDC myHdc;
 PAINTSTRUCT ps;
 
 Gdiplus::GdiplusStartupInput gdiInput;
+
 ULONG_PTR gdiToken;
 
-void paint ( Gdiplus::Bitmap *,  Gdiplus::Graphics * gf, Gdiplus::Color * pixelColor);
+int h = 90;
+
+HANDLE hThread, ghRunning;
+
+DWORD WINAPI thread(LPVOID lpar);
+
+void paint ( );
+
+bool running = true;
 
 LRESULT CALLBACK WindowProc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
@@ -39,10 +50,7 @@ int WINAPI WinMain (HINSTANCE hinst, HINSTANCE hprev, LPSTR lpCmdline, int nCmdS
 
 	RegisterClass (&wc);
 
-	bool answer = Gdiplus::GdiplusStartup(&gdiToken, &gdiInput, NULL);
-	Gdiplus::Bitmap bmp(L"dd.bmp");
-	
-	
+	bool answer = Gdiplus::GdiplusStartup(&gdiToken, &gdiInput, NULL);		
 
 	HWND hwnd = CreateWindowEx (
 		WS_EX_CLIENTEDGE,
@@ -63,27 +71,28 @@ int WINAPI WinMain (HINSTANCE hinst, HINSTANCE hprev, LPSTR lpCmdline, int nCmdS
 
 	ShowWindow(hwnd, nCmdShow);
 
-	MSG msg = {};
+	MSG msg ;
 
-	myHdc = BeginPaint(hwnd, &ps);
+	msg.message = WM_NULL;	
 
-	Gdiplus::Graphics gf(myHdc);
+	myHdc = GetDC(hwnd);		
 
-	Gdiplus::Color pixelColor;
+	hThread = CreateThread(NULL, 0, thread, NULL, 0, NULL);
 
-	while (GetMessage(&msg, NULL, 0, 0)) {
+	while (1) {
+
 			
-		TranslateMessage(&msg);		
-
-		DispatchMessage(&msg);
+		if (PeekMessage(&msg, hwnd, 0,0, PM_REMOVE))
+			DispatchMessage(&msg);			
 		
-		paint(&bmp, &gf, &pixelColor);	
-			
-	}
+		Sleep(50);
+	
+	}	
 
-	EndPaint(hwnd, &ps);
+	ReleaseDC ( hwnd, myHdc);
 
 	Gdiplus::GdiplusShutdown(gdiToken);
+
 	return 0;
 
 }
@@ -94,10 +103,10 @@ LRESULT CALLBACK WindowProc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) 
 
 		case WM_DESTROY:
 			PostQuitMessage(0);
-			return 0;
+			exit(0);
 
-		case WM_PAINT:		
-			break;		
+		case WM_PAINT:			
+			break;	
 
 	}
 
@@ -105,21 +114,43 @@ LRESULT CALLBACK WindowProc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) 
 
 }
 
+DWORD WINAPI thread(LPVOID lpar) {
+	
+	paint();
 
-void paint(Gdiplus::Bitmap * bmp, Gdiplus::Graphics * gf, Gdiplus::Color * pixelColor) {	
+}
 
-	for (int g = 0; g < 40000; g++) {				
+void paint() {		
 
-		long i = rand() % WIDTH + 1;
-		long j = rand() % HEIGHT + 1;
-		int sz = rand() % 10 + 25;
-		bmp->GetPixel(i,j,pixelColor);			
-		Gdiplus::SolidBrush brush(Gdiplus::Color(pixelColor->GetR(), pixelColor->GetG(), pixelColor->GetB(), sz));
-		gf->FillEllipse(&brush, i % WIDTH, j % HEIGHT, sz, sz);					
+	Gdiplus::Graphics gf(myHdc);
+	
+	Gdiplus::Color pixelColor;
+
+	Gdiplus::Bitmap bmp(L"dd.bmp");	
+
+	int i,j,sz;
+
+	for (int k = 0 ; k < 4000; k++) {				
+		
+		for (int l = 0 ; l < 10; l++) {
+		
+			i = rand() % WIDTH + 1;
+			j = rand() % HEIGHT + 1;
+			sz = rand() % 10 + 25;
+			bmp.GetPixel(i,j, &pixelColor);			
+			Gdiplus::SolidBrush brush(Gdiplus::Color(pixelColor.GetR(), pixelColor.GetG(), pixelColor.GetB(), sz));
+			gf.FillEllipse(&brush, i % WIDTH, j % HEIGHT, sz, sz);
+		}
+
+		if (k == 3999)	 {
+
+			k--;
+			Sleep(1);
+
+		}
+
 	}
 	
 }
-
-
 
 
